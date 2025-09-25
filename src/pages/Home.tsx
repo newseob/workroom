@@ -125,7 +125,7 @@ export default function Home() {
     const login = () =>
         supabase.auth.signInWithOAuth({
             provider: "google",
-            options: { redirectTo: "http://localhost:5173/" },
+            options: { redirectTo: "https://workroom-phi.vercel.app/" },
         })
 
     const logout = () => supabase.auth.signOut()
@@ -235,7 +235,7 @@ export default function Home() {
             <img
                 src="/banner.png"
                 alt="예시 이미지"
-                style={{ maxWidth: "60%", marginTop: "20px", marginBottom: "2rem" }}
+                style={{ maxWidth: "80%", marginTop: "20px", marginBottom: "2rem" }}
             />
 
             {/* 전체설명 */}
