@@ -159,8 +159,6 @@ export default function Home() {
 
         // ✅ 2. 새 방 코드 생성
         const newRoomId = generateRoomCode()
-        
-        console.log("👉 user 값:", user)
 
         // ✅ 3. rooms 테이블에 새 방 생성
         const { error: roomError } = await supabase.from("rooms").insert({
@@ -234,32 +232,6 @@ export default function Home() {
                 textAlign: "center",
             }}
         >
-            <img
-                src="/banner.png"
-                alt="예시 이미지"
-                style={{ maxWidth: "80%", marginTop: "20px", marginBottom: "2rem" }}
-            />
-
-            {/* 전체설명 */}
-            <p style={{ marginBottom: "2rem", color: "#ccc" }}>
-                이 사이트는 같이 작업하는 느낌을 나타내는 귀여운 공간입니다:)
-            </p>
-            <p style={{ marginBottom: "2rem", color: "#ccc" }}>
-                <span style={{ color: "#a78bfa", fontWeight: "bold" }}>방 생성</span>을
-                하면
-                <span style={{ color: "#a78bfa", fontWeight: "bold" }}> 5자리 코드</span>
-                가 만들어지고, 그 코드를 공유하면 다른 사람도 바로 들어올 수 있어요.
-                <br />
-                이미 누군가가 보낸 코드가 있다면{" "}
-                <span style={{ color: "#3b82f6", fontWeight: "bold" }}>방 입장</span>{" "}
-                버튼을 누르고
-                <span style={{ color: "#3b82f6", fontWeight: "bold" }}>
-                    {" "}
-                    코드를 입력
-                </span>
-                해 들어갈 수 있습니다.
-            </p>
-
             <div style={{ height: "100px" }}></div>
 
             {/* 로그인 & 닉네임 박스 */}
