@@ -234,7 +234,7 @@ export default function Home() {
         >
             <div style={{ height: "100px" }}></div>
 
-            <h3>WorkRoom | 같이작업할래?</h3>
+            <h2>WorkRoom | 같이작업할래?</h2>
             <div style={{ height: "20px" }}></div>
 
             {/* 로그인 & 닉네임 박스 */}
