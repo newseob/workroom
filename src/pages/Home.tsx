@@ -159,6 +159,8 @@ export default function Home() {
 
         // ✅ 2. 새 방 코드 생성
         const newRoomId = generateRoomCode()
+        
+        console.log("👉 user 값:", user)
 
         // ✅ 3. rooms 테이블에 새 방 생성
         const { error: roomError } = await supabase.from("rooms").insert({
