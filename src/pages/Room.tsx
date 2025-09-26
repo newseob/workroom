@@ -21,26 +21,9 @@ export default function Room() {
       const currentUser = authData.user
       setUser(currentUser ?? null)
       setLoading(false)
-
-      if (currentUser) {
-        // DB에서 current_room + last_room 가져오기
-        const { data: userRow } = await supabase
-          .from("users")
-          .select("current_room, last_room")
-          .eq("id", currentUser.id)
-          .single()
-
-        if (userRow?.current_room) {
-          // ✅ 현재 방이 있을 때만 자동 입장
-          setRoomId(userRow.current_room)
-          setStage("room")
-        } else {
-          // ✅ 방 선택 화면으로 보내기
-          setStage("roomselect")
-        }
-      } else {
-        setStage("login")
-      }
+    
+      // ✅ 자동 이동 없앰: 무조건 로그인 화면
+      setStage("login")
     }
 
     checkUser()
