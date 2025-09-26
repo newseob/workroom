@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabaseClient"
-import Login from "./login"
+import Login from "./Login"
 import RoomSelect from "./RoomSelect"
 import UserList from "./UserList"   // ✅ 새로 만든 컴포넌트 임포트
 
