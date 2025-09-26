@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react"
+import { useEffect, useRef } from "react"
 import { supabase } from "../lib/supabaseClient"
 
 type RoomHeaderProps = {
