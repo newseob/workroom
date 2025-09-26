@@ -3,9 +3,10 @@ import { supabase } from "../lib/supabaseClient"
 
 type Props = {
     userId: string
+    roomId: string
 }
 
-export default function UserInputPanel({ userId }: Props) {
+export default function UserInputPanel({ userId, roomId }: Props) {
     const [nickname, setNickname] = useState("")
     const [character, setCharacter] = useState("")
     const [background, setBackground] = useState("")
@@ -148,15 +149,24 @@ export default function UserInputPanel({ userId }: Props) {
                 placeholder="메모 입력하고 enter"
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
-                onKeyDown={(e) => {
+                onKeyDown={async (e) => {
                     if (e.key === "Enter") {
                         e.preventDefault()
 
                         const newMemo = memo.trim() === "" ? "" : memo
-                        updateUser("memo", newMemo)
-                        setMemo(newMemo) // 상태도 동기화
 
-                        // ✅ 사운드 재생
+                        // ✅ 1. users 테이블 업데이트
+                        await updateUser("memo", newMemo)
+                        setMemo(newMemo)
+
+                        // ✅ 2. sound_events 테이블에 이벤트 기록
+                        await supabase.from("sound_events").insert({
+                            room_id: roomId,   // 🔹 현재 방 ID (props로 전달 필요)
+                            user_id: userId,
+                            type: "memo"
+                        })
+
+                        // ✅ (선택) 본인만 즉시 들을 로컬 사운드
                         const audio = new Audio("/assets/sound/Metallic Clank.mp3")
                         audio.play().catch((err) => console.error("사운드 재생 실패:", err))
                     }

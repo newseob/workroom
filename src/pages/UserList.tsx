@@ -24,16 +24,6 @@ const statusFileMap: Record<string, string> = {
   자리비움: "away.png",
 }
 
-// ✅ CSS-in-JS 애니메이션 정의
-const glowAnimation = `
-@keyframes glow {
-  0%   { border-color: transparent; }
-  25%  { border-color: yellow; }
-  75%  { border-color: yellow; }
-  100% { border-color: transparent; }
-}
-`
-
 // User 타입
 type User = {
   id: string
@@ -60,7 +50,7 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
     setHighlightedIds((prev) => [...prev, id])
     setTimeout(() => {
       setHighlightedIds((prev) => prev.filter((x) => x !== id))
-    }, 1000) // 1초 후 해제
+    }, 10000) // ✅ 10초 (애니메이션 시간과 동일하게)
   }
 
   // ✅ 현재 방 참여자 로드
@@ -167,7 +157,18 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
         height: "100%",
       }}
     >
-      <style>{glowAnimation}</style>
+      <style>{`
+        @keyframes glow {
+          0%   { border-color: transparent; }
+          25%  { border-color: yellow; }
+          75%  { border-color: yellow; }
+          100% { border-color: transparent; }
+        }
+        .highlight {
+          animation: glow 10s ease-in-out;
+          border: 3px solid transparent; /* 기본 투명 */
+        }
+      `}</style>
 
       {sortedParticipants.length > 0 ? (
         sortedParticipants.map((p) => {
@@ -183,6 +184,7 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
           return (
             <div
               key={p.id}
+              className={isHighlighted ? "highlight" : ""}
               style={{
                 background: `url(/assets/background/${bgFile}.png) center/cover no-repeat`,
                 borderRadius: "8px",
@@ -192,10 +194,7 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
                 alignItems: "center",
                 justifyContent: "center",
                 flexDirection: "column",
-                border: "3px solid transparent",  // 기본은 투명
-                ...(isHighlighted && {
-                  animation: "glow 10s ease-in-out", // ✅ 애니메이션 실행
-                }),
+                border: "3px solid transparent", // 기본은 투명
               }}
             >
               {/* 캐릭터 이미지 */}
@@ -216,8 +215,8 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
                     position: "absolute",
                     top: "15%",
                     left: "50%",
-                    transform: "translateX(-50%)",
-                    background: "rgba(255,255,255,0.50)",
+                    transform: "translate(-50%)", 
+                    background: "rgba(255,255,255,0.7)",
                     color: "#000",
                     padding: "8px 12px",
                     borderRadius: "10px",

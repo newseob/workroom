@@ -182,7 +182,7 @@ export default function Room() {
             >
               {/* ✅ 현재 방 ID 넘겨줌 */}
               <UserList roomId={roomId} currentUserId={user.id} />
-              </div>
+            </div>
 
             <div
               style={{
@@ -196,7 +196,7 @@ export default function Room() {
                 justifyContent: "center",
               }}
             >
-              <UserInputPanel userId={user.id} />
+              <UserInputPanel userId={user.id} roomId={roomId} />
             </div>
           </div>
         )}
