@@ -23,17 +23,19 @@ export default function Room() {
       setLoading(false)
 
       if (currentUser) {
-        // DB에서 마지막 방 가져오기
+        // DB에서 current_room + last_room 가져오기
         const { data: userRow } = await supabase
           .from("users")
-          .select("last_room")
+          .select("current_room, last_room")
           .eq("id", currentUser.id)
           .single()
 
-        if (userRow?.last_room) {
-          setRoomId(userRow.last_room)
-          setStage("room")         // ✅ 마지막 방으로 바로 이동
+        if (userRow?.current_room) {
+          // ✅ 현재 방이 있을 때만 자동 입장
+          setRoomId(userRow.current_room)
+          setStage("room")
         } else {
+          // ✅ 방 선택 화면으로 보내기
           setStage("roomselect")
         }
       } else {
@@ -43,6 +45,7 @@ export default function Room() {
 
     checkUser()
   }, [])
+
 
   // ===== 2. roomId 바뀔 때 방 이름 가져오기 =====
   useEffect(() => {
