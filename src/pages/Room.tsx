@@ -159,7 +159,11 @@ export default function Room() {
           <Login
             onLoginSuccess={(loggedUser: any) => {
               setUser(loggedUser)
-              setStage("roomselect")
+              // ✅ Login.tsx에서 닉네임까지 확인된 경우에만 호출됨
+              // 여기서는 stage만 안전하게 roomselect로 이동
+              if (loggedUser?.nickname) {
+                setStage("roomselect")
+              }
             }}
           />
         )}
