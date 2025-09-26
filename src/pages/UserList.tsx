@@ -165,8 +165,8 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
           100% { border-color: transparent; }
         }
         .highlight {
-          animation: glow 10s ease-in-out;
-          border: 3px solid transparent; /* 기본 투명 */
+          animation: glow 10s ease-in-out forwards; /* ✅ 끝난 상태 유지 */
+          border: 3px solid transparent;
         }
       `}</style>
 
@@ -215,7 +215,7 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
                     position: "absolute",
                     top: "15%",
                     left: "50%",
-                    transform: "translate(-50%)", 
+                    transform: "translate(-50%)",
                     background: "rgba(255,255,255,0.7)",
                     color: "#000",
                     padding: "8px 12px",
