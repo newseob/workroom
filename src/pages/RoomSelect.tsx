@@ -15,7 +15,7 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
   const [recentRoom, setRecentRoom] = useState<Room | null>(null)
   const [favorites, setFavorites] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
-  const [joinCode, setJoinCode] = useState("") // ✅ 방 코드 입력 상태
+  const [joinCode, setJoinCode] = useState("")
 
   // ✅ 방 코드 생성
   const generateRoomCode = () => {
@@ -50,15 +50,13 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
 
     await supabase
       .from("users")
-      .update({
-        last_room: newRoomId,
-      })
+      .update({ last_room: newRoomId })
       .eq("id", user.id)
 
     onRoomSelected(newRoomId)
   }
 
-  // ✅ 방 입장 (입력한 코드로)
+  // ✅ 방 입장 (코드 입력)
   const handleJoinRoom = async () => {
     if (!joinCode.trim()) {
       alert("방 코드를 입력하세요.")
@@ -79,7 +77,35 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
     onRoomSelected(roomData.id)
   }
 
-  // ✅ 방 정보 + 인원수 조회
+  // ✅ 즐겨찾기 토글
+  const handleToggleFavorite = async (roomId: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const isFav = favorites.some((f) => f.id === roomId)
+
+    if (isFav) {
+      const confirmRemove = window.confirm("즐겨찾기를 해제하시겠습니까?")
+      if (!confirmRemove) return
+
+      await supabase
+        .from("favorites")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("room_id", roomId)
+
+      setFavorites((prev) => prev.filter((f) => f.id !== roomId))
+    } else {
+      await supabase.from("favorites").insert({
+        user_id: user.id,
+        room_id: roomId,
+      })
+      const roomInfo = await getRoomWithCount(roomId)
+      if (roomInfo) setFavorites((prev) => [...prev, roomInfo])
+    }
+  }
+
+  // ✅ 방 정보 + 인원수 조회 (users.current_room 기준)
   const getRoomWithCount = async (roomId: string) => {
     const { data: roomData } = await supabase
       .from("rooms")
@@ -90,14 +116,11 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
     if (!roomData) return null
 
     const { count } = await supabase
-      .from("participants")
+      .from("users")
       .select("*", { count: "exact", head: true })
-      .eq("room_id", roomId)
+      .eq("current_room", roomId)
 
-    return {
-      ...roomData,
-      memberCount: count ?? 0,
-    }
+    return { ...roomData, memberCount: count ?? 0 }
   }
 
   // ✅ 최근방 + 즐겨찾기 불러오기
@@ -132,20 +155,8 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
       if (favRows) {
         const favRooms: Room[] = []
         for (const f of favRows) {
-          const { data: roomData } = await supabase
-            .from("rooms")
-            .select("id,name")
-            .eq("id", f.room_id)
-            .single()
-
-          if (roomData) {
-            const { count } = await supabase
-              .from("participants")
-              .select("*", { count: "exact", head: true })
-              .eq("room_id", f.room_id)
-
-            favRooms.push({ ...roomData, memberCount: count ?? 0 })
-          }
+          const roomInfo = await getRoomWithCount(f.room_id)
+          if (roomInfo) favRooms.push(roomInfo)
         }
         setFavorites(favRooms)
       }
@@ -155,11 +166,19 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
 
     fetchRooms()
 
-    // ✅ Realtime 구독: 방 이름/인원 갱신
+    // ✅ Realtime 구독 (rooms + users.current_room)
     const channel = supabase
       .channel("room-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "rooms" }, () => fetchRooms())
-      .on("postgres_changes", { event: "*", schema: "public", table: "participants" }, () => fetchRooms())
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "rooms" },
+        () => fetchRooms()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "users" },
+        () => fetchRooms()
+      )
       .subscribe()
 
     return () => {
@@ -193,21 +212,37 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
             padding: "1.5rem",
             textAlign: "left",
             cursor: "pointer",
+            position: "relative",
           }}
           onClick={() => onRoomSelected(recentRoom.id)}
         >
           <div style={{ fontSize: "12px", color: "#888", marginBottom: "4px" }}>
             최근 접속한 방
           </div>
-          <div style={{ fontSize: "16px", fontWeight: "bold" }}>
-            {recentRoom.name}
-          </div>
-          <div style={{ fontSize: "13px", color: "#aaa" }}>
-            코드: {recentRoom.id}
-          </div>
+          <div style={{ fontSize: "16px", fontWeight: "bold" }}>{recentRoom.name}</div>
+          <div style={{ fontSize: "13px", color: "#aaa" }}>코드: {recentRoom.id}</div>
           <div style={{ fontSize: "13px", color: "#aaa" }}>
             인원: {recentRoom.memberCount}/12
           </div>
+          {/* 즐겨찾기 버튼 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleToggleFavorite(recentRoom.id)
+            }}
+            style={{
+              position: "absolute",
+              top: "0px",     // ✅ ⬆️ 위쪽으로
+              right: "0px",   // ✅ 오른쪽 고정
+              background: "transparent",
+              border: "none",
+              fontSize: "18px",
+              cursor: "pointer",
+              color: "#facc15",
+            }}
+          >
+            {favorites.some((f) => f.id === recentRoom.id) ? "★" : "☆"}
+          </button>
         </div>
       )}
 
@@ -221,19 +256,37 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
             padding: "1.5rem",
             textAlign: "left",
             cursor: "pointer",
+            position: "relative",
           }}
           onClick={() => onRoomSelected(room.id)}
         >
           <div style={{ fontSize: "12px", color: "#888", marginBottom: "4px" }}>
             즐겨찾기 #{idx + 1}
           </div>
-          <div style={{ fontSize: "16px", fontWeight: "bold" }}>
-            {room.name}
-          </div>
+          <div style={{ fontSize: "16px", fontWeight: "bold" }}>{room.name}</div>
           <div style={{ fontSize: "13px", color: "#aaa" }}>코드: {room.id}</div>
           <div style={{ fontSize: "13px", color: "#aaa" }}>
             인원: {room.memberCount}/12
           </div>
+          {/* 즐겨찾기 버튼 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleToggleFavorite(room.id)
+            }}
+            style={{
+              position: "absolute",
+              top: "0px",     // ✅ ⬆️ 위쪽으로
+              right: "0px",   // ✅ 오른쪽 고정
+              background: "transparent",
+              border: "none",
+              fontSize: "18px",
+              cursor: "pointer",
+              color: "#facc15",
+            }}
+          >
+            {favorites.some((f) => f.id === room.id) ? "★" : "☆"}
+          </button>
         </div>
       ))}
 
@@ -243,26 +296,33 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
           background: "#111",
           borderRadius: "8px",
           padding: "1.5rem",
-          textAlign: "center",
+          textAlign: "left",         // ✅ 왼쪽 정렬
           border: "2px dashed #666",
           display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
+          flexDirection: "column",   // ✅ 세로 레이아웃
+          alignItems: "flex-start",  // ✅ 왼쪽 정렬
+          minHeight: "120px",   // ✅ 최소 높이 지정
           gap: "0.5rem",
         }}
       >
         <h3 style={{ margin: 0, color: "#3b82f6" }}>방 입장</h3>
-
-        {/* 🔹 input + button 가로 배치 */}
-        <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center", // ✅ 가운데 정렬
+            gap: "0.5rem",
+            width: "100%",
+            marginTop: "1.5rem",   // ✅ 전체 블록을 밑으로 내림
+          }}
+        >
           <input
             type="text"
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value)}
-            placeholder="방 코드 입력"
+            placeholder="코드 입력"
             style={{
-              flex: 1,
+              width: "150px",       // ✅ 고정 폭
+              maxWidth: "80%",      // ✅ 화면이 너무 작을 때는 줄어듦
               padding: "6px",
               borderRadius: "4px",
               border: "1px solid #555",
@@ -294,12 +354,13 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
           background: "#111",
           borderRadius: "8px",
           padding: "1.5rem",
-          textAlign: "center",
+          textAlign: "left",         // ✅ 왼쪽 정렬
           cursor: "pointer",
           border: "2px dashed #666",
           display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
+          flexDirection: "column",   // ✅ 세로 레이아웃
+          alignItems: "flex-start",  // ✅ 왼쪽 정렬
+          minHeight: "120px",   // ✅ 최소 높이 지정
         }}
         onClick={handleCreateRoom}
       >
