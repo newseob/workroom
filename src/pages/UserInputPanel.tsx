@@ -166,9 +166,6 @@ export default function UserInputPanel({ userId, roomId }: Props) {
                             type: "memo"
                         })
 
-                        // ✅ (선택) 본인만 즉시 들을 로컬 사운드
-                        const audio = new Audio("/assets/sound/Metallic Clank.mp3")
-                        audio.play().catch((err) => console.error("사운드 재생 실패:", err))
                     }
                 }}
                 style={{

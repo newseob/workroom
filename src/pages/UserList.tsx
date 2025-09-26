@@ -80,7 +80,7 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
           setParticipants((prev) => {
             if (payload.eventType === "DELETE" && oldRow) {
               // ✅ 퇴장 사운드 + 하이라이트
-              const leaveAudio = new Audio("/assets/sound/leave.mp3")
+              const leaveAudio = new Audio("/assets/sound/Metal Dropped Rolling.mp3")
               leaveAudio.play().catch(console.error)
               triggerHighlight(oldRow.id)
 
@@ -96,6 +96,8 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
                 // ✅ 메모 변경 시 하이라이트
                 if (newRow.memo !== exists.memo) {
                   triggerHighlight(newRow.id)
+                  const memoAudio = new Audio("/assets/sound/Metallic Clank.mp3")
+                  memoAudio.play().catch(console.error)
                 }
                 return prev.map((u) => (u.id === newRow.id ? newRow : u))
               } else {
