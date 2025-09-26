@@ -172,7 +172,19 @@ export default function RoomHeader({
         </button>
 
         <button
-          onClick={onLogout}
+          onClick={async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+              // ✅ users 테이블에서 방 나가기 반영
+              await supabase
+                .from("users")
+                .update({ current_room: null })
+                .eq("id", user.id)
+            }
+
+            // ✅ 기존 onLogout 호출 (세션 종료 등)
+            onLogout()
+          }}
           style={{
             fontSize: "12px",
             padding: "4px 8px",
