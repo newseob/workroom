@@ -54,7 +54,12 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
         if (!p.last_seen) continue;
 
         const lastSeen = new Date(p.last_seen).getTime();
-        const diffMinutes = (Date.now() - lastSeen) / 1000 / 60;
+        const diffMinutes = Math.floor((Date.now() - lastSeen) / 1000 / 60);
+
+        // ✅ 자리비움 로그 출력
+        console.log(
+          `[${p.nickname || p.email}] 마지막 활동: ${p.last_seen}, 자리비움 경과: ${diffMinutes}분`
+        );
 
         // 10분 넘음 → 자리비움 전환
         if (diffMinutes >= 10 && p.status !== "자리비움") {
@@ -66,22 +71,11 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
             })
             .eq("id", p.id);
         }
-
-        // 10분 이내 + DB에는 자리비움 → 원래 상태 복구
-        if (diffMinutes < 10 && p.status === "자리비움" && (p as any).status_before_away) {
-          await supabase
-            .from("users")
-            .update({
-              status: (p as any).status_before_away,
-              status_before_away: null,
-            })
-            .eq("id", p.id);
-        }
       }
     };
 
     updateAwayStatuses();
-    const interval = setInterval(updateAwayStatuses, 60000); // 1분마다 검사
+    const interval = setInterval(updateAwayStatuses, 60000); // 1분마다 실행
     return () => clearInterval(interval);
   }, [participants]);
 
@@ -125,10 +119,27 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "users" },
-        (payload) => {
+        async (payload) => {
           const newRow = payload.new as User
           const oldRow = payload.old as User
 
+          // ✅ last_seen 갱신 감지 → 바로 복귀 처리
+          if (
+            payload.eventType === "UPDATE" &&
+            newRow.last_seen !== oldRow?.last_seen && // last_seen 값이 갱신됨
+            newRow.status === "자리비움" &&
+            newRow.status_before_away
+          ) {
+            await supabase
+              .from("users")
+              .update({
+                status: newRow.status_before_away,
+                status_before_away: null,
+              })
+              .eq("id", newRow.id)
+          }
+
+          // 기존 participants 갱신 로직 ↓
           setParticipants((prev) => {
             if (payload.eventType === "DELETE" && oldRow) {
               const leaveAudio = new Audio("/assets/sound/Metal Dropped Rolling.mp3")
