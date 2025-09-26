@@ -1,308 +1,214 @@
-import { useEffect, useState, useMemo } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabaseClient"
-
-
-type RoomRow = {
-    id: string
-    name: string
-    owner: string
-    created_at?: string
-}
+import Login from "./login"
+import RoomSelect from "./RoomSelect"
+import UserList from "./UserList"   // ✅ 새로 만든 컴포넌트 임포트
 
 type UserRow = {
-    id: string
-    nickname: string | null
-    email: string | null
-    current_room?: string | null
+  id: string
+  nickname: string | null
+  email: string | null
 }
 
 export default function Room() {
-    const { roomId } = useParams()
-    const navigate = useNavigate()   // ✅ 추가
-    const [participants, setParticipants] = useState<UserRow[]>([])
-    const [room, setRoom] = useState<RoomRow | null>(null)
-    const [user, setUser] = useState<any>(null)
-    const [tempName, setTempName] = useState("")
-    const [isFavorite, setIsFavorite] = useState(false) // ✅ 즐겨찾기 상태 추가
+  const [participants, setParticipants] = useState<UserRow[]>([])
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [roomId, setRoomId] = useState<string | null>(null) // ✅ 선택된 방 ID
+  const [tempName, setTempName] = useState("")
+  const [isFavorite, setIsFavorite] = useState(false)
 
-    const isOwner = useMemo(
-        () => Boolean(user?.id && room?.owner && user.id === room.owner),
-        [user?.id, room?.owner]
-    )
+  // ✅ 화면 단계: login → roomselect → room
+  const [stage, setStage] = useState<"login" | "roomselect" | "room">("login")
 
-    // 로그인 유저
-    useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null))
-    }, [])
+  // ✅ 로그인 유저 확인
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null)
+      setLoading(false)
+      // 자동으로 stage 전환하지 않음 (닉네임 + 로그인 버튼으로만 전환)
+    })
+  }, [])
 
-    // ✅ 현재 방이 즐겨찾기인지 확인
-    useEffect(() => {
-        const checkFavorite = async () => {
-            if (!user || !roomId) return
-            const { data, error } = await supabase
-                .from("favorites")
-                .select("room_id")
-                .eq("user_id", user.id)
-                .eq("room_id", roomId)
-                .maybeSingle()
+  // ✅ 참여자 불러오기
+  const fetchParticipants = async (roomId?: string | null) => {
+    if (!roomId) return
+    const { data } = await supabase
+      .from("users")
+      .select("id,nickname,email")
+      .eq("current_room", roomId)
+      .order("nickname", { ascending: true })
 
-            if (!error && data) {
-                setIsFavorite(true)
-            } else {
-                setIsFavorite(false)
-            }
-        }
-        checkFavorite()
-    }, [user, roomId])
+    setParticipants((data ?? []) as UserRow[])
+  }
 
-    // ✅ 방 나가기 함수
-    const handleLeaveRoom = async () => {
-        if (!user) return
-        await supabase
-            .from("users")
-            .update({ current_room: null })  // ✅ current_room만 null 처리
-            .eq("id", user.id)
-
-        navigate("/") // 홈으로 이동
+  // ✅ Room 단계 진입 시 참여자 목록 불러오기
+  useEffect(() => {
+    if (stage === "room" && roomId) {
+      fetchParticipants(roomId)
     }
+  }, [stage, roomId])
 
+  // ✅ 로그아웃
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+    setParticipants([])   // ✅ 참가자 초기화
+    setStage("login")
+  }
 
-    // ✅ 즐겨찾기 토글 함수
-    const toggleFavorite = async () => {
-        if (!user || !roomId) return
-
-        if (isFavorite) {
-            // 해제
-            const { error } = await supabase
-                .from("favorites")
-                .delete()
-                .eq("user_id", user.id)
-                .eq("room_id", roomId)
-            if (!error) setIsFavorite(false)
-        } else {
-            // 추가
-            const { error } = await supabase
-                .from("favorites")
-                .insert({ user_id: user.id, room_id: roomId })
-            if (!error) setIsFavorite(true)
-        }
-    }
-
-    // ---- helpers ----
-    const fetchRoom = async () => {
-        if (!roomId) return
-        const { data, error } = await supabase
-            .from("rooms")
-            .select("id,name,owner,created_at")
-            .eq("id", roomId)
-            .maybeSingle<RoomRow>()
-
-        if (!error) {
-            setRoom(data ?? null)
-            setTempName(data?.name ?? "")
-        }
-    }
-
-    const fetchParticipants = async () => {
-        if (!roomId) return
-        const { data } = await supabase
-            .from("users")
-            .select("id,nickname,email,current_room")
-            .eq("current_room", roomId)
-            .order("nickname", { ascending: true })
-
-        setParticipants((data ?? []) as UserRow[])
-    }
-
-    // 방 + 참여자 + 실시간
-    useEffect(() => {
-        if (!roomId) return
-
-        fetchRoom()
-        fetchParticipants()
-
-        const channel = supabase
-            .channel(`room-${roomId}`)
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "rooms", filter: `id=eq.${roomId}` },
-                fetchRoom
-            )
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "users", filter: `current_room=eq.${roomId}` },
-                fetchParticipants
-            )
-            .subscribe()
-
-        return () => {
-            supabase.removeChannel(channel)
-        }
-    }, [roomId])
-
-    // ✅ 방 이름 저장
-    const saveRoomName = async () => {
-        if (!roomId || !isOwner) return
-        const name = tempName.trim()
-        if (!name || name === room?.name) return
-
-        const { data, error } = await supabase
-            .from("rooms")
-            .update({ name })
-            .eq("id", roomId)
-            .select("id,name,owner,created_at")
-            .maybeSingle<RoomRow>()
-
-        if (!error && data) {
-            setRoom(data)
-        }
-    }
-
-
-    // ✅ 입력 중 일정 시간 후 자동 저장 (디바운스)
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            saveRoomName()
-        }, 2000) // 2초 후 자동 저장
-        return () => clearTimeout(timer)
-    }, [tempName])
-
+  if (loading) {
     return (
-        <div
-            style={{
-                backgroundColor: "#101010",
-                color: "#ccc",
-                minHeight: "100vh",
-                padding: "2rem",
-                display: "flex",
-                flexDirection: "column",
-                gap: "1.5rem",
-            }}
-        >
-            {/* 방 이름 + 코드 */}
-            <header
-                style={{
-                    display: "flex",
-                    justifyContent: "space-between", // 좌우 배치
-                    alignItems: "center",
-                    gap: "12px",
-                }}
-            >
-                {/* ✅ 방 제목 (왼쪽) */}
-                <input
-                    type="text"
-                    value={tempName}
-                    onChange={(e) => setTempName(e.target.value)}
-                    readOnly={!isOwner}
-                    placeholder="방 이름을 입력하세요"
-                    style={{
-                        fontSize: "24px",
-                        fontWeight: "bold",
-                        lineHeight: "1.2",
-                        height: "36px",
-                        padding: 0,
-                        margin: 0,
-                        background: "transparent",
-                        border: "none",
-                        outline: "none",
-                        color: "#fff",
-                        boxSizing: "border-box",
-                        textAlign: "left",
-                        flex: 1, // 남는 공간 차지
-                    }}
-                />
-
-                {/* ✅ 방 코드 + 복사 + 즐겨찾기 (오른쪽) */}
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <p style={{ fontSize: "14px", color: "#999", margin: 0 }}>
-                        방 코드:{" "}
-                        <span style={{ color: "#a78bfa", fontWeight: "bold" }}>{roomId}</span>
-                    </p>
-
-                    <button
-                        onClick={() => {
-                            if (roomId) {
-                                navigator.clipboard.writeText(roomId)
-                                alert("방 코드가 복사되었습니다.")
-                            }
-                        }}
-                        style={{
-                            fontSize: "12px",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            border: "none",
-                            cursor: "pointer",
-                            background: "#333",
-                            color: "#fff",
-                        }}
-                    >
-                        복사
-                    </button>
-
-                    <button
-                        onClick={toggleFavorite}
-                        style={{
-                            fontSize: "12px",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            border: "none",
-                            cursor: "pointer",
-                            background: isFavorite ? "#facc15" : "#333",
-                            color: isFavorite ? "#000" : "#fff",
-                            fontWeight: "bold",
-                        }}
-                    >
-                        {isFavorite ? "★ 즐겨찾기" : "☆ 즐겨찾기"}
-                    </button>
-                    {/* ✅ 나가기 버튼 */}
-                    <button
-                        onClick={handleLeaveRoom}
-                        style={{
-                            fontSize: "12px",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            border: "none",
-                            cursor: "pointer",
-                            background: "#dc2626", // 빨간색
-                            color: "#fff",
-                        }}
-                    >
-                        나가기
-                    </button>
-                </div>
-            </header>
-
-
-            {/* 참여자 */}
-            <section>
-                <h2 style={{ fontSize: "16px", marginBottom: "0.5rem" }}>참여자</h2>
-                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                    {participants.map((p) => (
-                        <li key={p.id} style={{ lineHeight: "1.9" }}>
-                            {p.nickname || p.email}
-                        </li>
-                    ))}
-                    {participants.length === 0 && <li>아직 참여자가 없어요.</li>}
-                </ul>
-            </section>
-
-            {/* 메모 */}
-            <section style={{ marginTop: "1rem" }}>
-                <h2 style={{ fontSize: "16px", marginBottom: "0.5rem" }}>메모</h2>
-                <textarea
-                    placeholder="메모를 입력하세요..."
-                    style={{
-                        width: "100%",
-                        height: "120px",
-                        padding: "8px",
-                        borderRadius: "6px",
-                        border: "none",
-                        background: "#1a1a1a",
-                        color: "#fff",
-                    }}
-                />
-            </section>
-        </div>
+      <div style={{ color: "#fff", textAlign: "center", padding: "2rem" }}>
+        로딩 중...
+      </div>
     )
+  }
+
+  return (
+    <div
+      style={{
+        backgroundColor: "#101010",
+        color: "#ccc",
+        minHeight: "100vh",
+        padding: "2rem",
+        display: "flex",
+        flexDirection: "column",
+        gap: "1.5rem",
+      }}
+    >
+      {/* ✅ 메뉴바: Room 단계에서만 표시 */}
+      {stage === "room" && user && (
+        <header
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <input
+            type="text"
+            value={tempName}
+            onChange={(e) => setTempName(e.target.value)}
+            placeholder="방 이름을 입력하세요"
+            style={{
+              fontSize: "24px",
+              fontWeight: "bold",
+              lineHeight: "1.2",
+              height: "36px",
+              padding: 0,
+              margin: 0,
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              color: "#fff",
+              flex: 1,
+            }}
+          />
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              onClick={() => {
+                if (roomId) {
+                  navigator.clipboard.writeText(roomId)
+                  alert("방 코드가 복사되었습니다.")
+                }
+              }}
+              style={{
+                fontSize: "12px",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                border: "none",
+                cursor: "pointer",
+                background: "#333",
+                color: "#fff",
+              }}
+            >
+              복사
+            </button>
+
+            <button
+              onClick={() => setIsFavorite((prev) => !prev)}
+              style={{
+                fontSize: "12px",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                border: "none",
+                cursor: "pointer",
+                background: isFavorite ? "#facc15" : "#333",
+                color: isFavorite ? "#000" : "#fff",
+                fontWeight: "bold",
+              }}
+            >
+              {isFavorite ? "★ 즐겨찾기" : "☆ 즐겨찾기"}
+            </button>
+
+            <button
+              onClick={() => alert("방 나가기 (추후 로직 연결 예정)")}
+              style={{
+                fontSize: "12px",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                border: "none",
+                cursor: "pointer",
+                background: "#dc2626",
+                color: "#fff",
+              }}
+            >
+              나가기
+            </button>
+
+            {/* ✅ 로그아웃 버튼 */}
+            <button
+              onClick={handleLogout}
+              style={{
+                fontSize: "12px",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                border: "none",
+                cursor: "pointer",
+                background: "#dc2626",
+                color: "#fff",
+              }}
+            >
+              로그아웃
+            </button>
+          </div>
+        </header>
+      )}
+
+      {/* ✅ 메인 영역: 단계에 따라 화면 변경 */}
+      <section
+        style={{
+          flex: 1,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        {stage === "login" && (
+          <Login
+            onLoginSuccess={(loggedUser: any) => {
+              setUser(loggedUser)
+              setStage("roomselect")
+            }}
+          />
+        )}
+
+        {stage === "roomselect" && (
+          <RoomSelect
+            onRoomSelected={(selectedRoomId: string) => {
+              setRoomId(selectedRoomId)   // ✅ 방 ID 저장
+              setStage("room")            // ✅ Room 단계로 이동
+            }}
+          />
+        )}
+
+        {stage === "room" && (
+          <UserList participants={participants} />
+        )}
+      </section>
+    </div>
+  )
 }
