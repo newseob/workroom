@@ -12,7 +12,7 @@ export default function App() {
         navigator.sendBeacon("https://<project-ref>.functions.supabase.co/leave-room", payload)
       }
     }
-
+  
     window.addEventListener("beforeunload", handleUnload)
     return () => window.removeEventListener("beforeunload", handleUnload)
   }, [])
