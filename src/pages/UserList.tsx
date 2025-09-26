@@ -32,8 +32,10 @@ type User = {
   background?: string | null
   character?: "A" | "B" | "C"
   status?: string | null
+  status_before_away?: string | null   // ✅ 원래 상태 저장용
   current_room?: string | null
-  memo?: string | null   // ✅ 메모 추가
+  memo?: string | null
+  last_seen?: string | null
 }
 
 type UserListProps = {
@@ -43,14 +45,62 @@ type UserListProps = {
 
 export default function UserList({ roomId, currentUserId }: UserListProps) {
   const [participants, setParticipants] = useState<User[]>([])
-  const [highlightedIds, setHighlightedIds] = useState<string[]>([]) // ✅ 하이라이트 관리
+  const [highlightedIds, setHighlightedIds] = useState<string[]>([])
+
+  // ✅ away/복귀 상태 자동 처리
+  useEffect(() => {
+    const updateAwayStatuses = async () => {
+      for (const p of participants) {
+        if (!p.last_seen) continue
+
+        const lastSeen = new Date(p.last_seen).getTime()
+        const diffMinutes = (Date.now() - lastSeen) / 1000 / 60
+
+        if (diffMinutes >= 10 && p.status !== "자리비움") {
+          await supabase
+            .from("users")
+            .update({
+              status_before_away: p.status,
+              status: "자리비움",
+            })
+            .eq("id", p.id)
+        }
+
+        if (diffMinutes < 10 && p.status === "자리비움" && p.status_before_away) {
+          await supabase
+            .from("users")
+            .update({
+              status: p.status_before_away,
+              status_before_away: null,
+            })
+            .eq("id", p.id)
+        }
+      }
+    }
+
+    updateAwayStatuses()
+    const interval = setInterval(updateAwayStatuses, 60000) // 1분마다 체크
+    return () => clearInterval(interval)
+  }, [participants])
+
+  // ✅ heartbeat: 내 last_seen 주기적으로 갱신
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      await supabase
+        .from("users")
+        .update({ last_seen: new Date().toISOString() })
+        .eq("id", currentUserId)
+    }, 30000) // 30초마다 갱신
+
+    return () => clearInterval(interval)
+  }, [currentUserId])
 
   // ✅ 하이라이트 트리거
   const triggerHighlight = (id: string) => {
     setHighlightedIds((prev) => [...prev, id])
     setTimeout(() => {
       setHighlightedIds((prev) => prev.filter((x) => x !== id))
-    }, 10000) // ✅ 10초 (애니메이션 시간과 동일하게)
+    }, 10000)
   }
 
   // ✅ 현재 방 참여자 로드
@@ -79,11 +129,9 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
 
           setParticipants((prev) => {
             if (payload.eventType === "DELETE" && oldRow) {
-              // ✅ 퇴장 사운드 + 하이라이트
               const leaveAudio = new Audio("/assets/sound/Metal Dropped Rolling.mp3")
               leaveAudio.play().catch(console.error)
               triggerHighlight(oldRow.id)
-
               return prev.filter((u) => u.id !== oldRow.id)
             }
 
@@ -93,7 +141,6 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
             ) {
               const exists = prev.find((u) => u.id === newRow.id)
               if (exists) {
-                // ✅ 메모 변경 시 하이라이트
                 if (newRow.memo !== exists.memo) {
                   triggerHighlight(newRow.id)
                   const memoAudio = new Audio("/assets/sound/Metallic Clank.mp3")
@@ -101,11 +148,9 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
                 }
                 return prev.map((u) => (u.id === newRow.id ? newRow : u))
               } else {
-                // ✅ 입장 사운드 + 하이라이트
                 const joinAudio = new Audio("/assets/sound/Pop.mp3")
                 joinAudio.play().catch(console.error)
                 triggerHighlight(newRow.id)
-
                 return [...prev, newRow]
               }
             }
@@ -115,11 +160,9 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
               oldRow?.current_room === roomId &&
               newRow.current_room !== roomId
             ) {
-              // ✅ 퇴장 사운드 + 하이라이트
               const leaveAudio = new Audio("/assets/sound/Metal Dropped Rolling.mp3")
               leaveAudio.play().catch(console.error)
               triggerHighlight(newRow.id)
-
               return prev.filter((u) => u.id !== newRow.id)
             }
 
@@ -166,7 +209,7 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
           100% { border-color: transparent; }
         }
         .highlight {
-          animation: glow 10s ease-in-out forwards; /* ✅ 끝난 상태 유지 */
+          animation: glow 10s ease-in-out forwards;
           border: 3px solid transparent;
         }
       `}</style>
@@ -182,6 +225,11 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
           const characterImage = `/assets/character/${charKey}/${statusFile}`
           const isHighlighted = highlightedIds.includes(p.id)
 
+          // ✅ last_seen 기준으로 오버레이 표시
+          const lastSeen = p.last_seen ? new Date(p.last_seen).getTime() : 0
+          const diffMinutes = lastSeen ? (Date.now() - lastSeen) / 1000 / 60 : 0
+          const showOverlay = diffMinutes >= 10
+
           return (
             <div
               key={p.id}
@@ -194,11 +242,11 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
                 alignItems: "center",
                 justifyContent: "center",
                 flexDirection: "column",
-                border: "3px solid transparent", // 기본은 투명
-                overflow: "hidden",              // ✅ 배경이 박스 밖으로 안 나가게
+                border: "3px solid transparent",
+                overflow: "hidden",
               }}
             >
-              {/* 배경 이미지 */}
+              {/* 배경 */}
               <img
                 src={`/assets/background/${bgFile}.png`}
                 alt="background"
@@ -207,23 +255,24 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
                   inset: 0,
                   width: "100%",
                   height: "100%",
-                  objectFit: "cover", // ✅ contain → cover (잘리게)
+                  objectFit: "cover",
                   zIndex: 0,
                 }}
               />
 
-              {/* 캐릭터 이미지 / 닉네임 / 메모는 기존대로, zIndex 올리기 */}
+              {/* 캐릭터 */}
               <img
                 src={characterImage}
                 alt={`${charName} - ${statusKey}`}
                 style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
+                  width: "100%",
+                  height: "100%",
                   objectFit: "contain",
                   zIndex: 1,
                 }}
               />
 
+              {/* 메모 */}
               {p.memo && (
                 <div
                   style={{
@@ -253,6 +302,7 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
                 </div>
               )}
 
+              {/* 닉네임 */}
               <div
                 style={{
                   position: "absolute",
@@ -271,6 +321,18 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
               >
                 {p.nickname || p.email || "이름 없음"}
               </div>
+
+              {/* ✅ 오버레이 */}
+              {showOverlay && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    backgroundColor: "rgba(0,0,0,0.7)",
+                    zIndex: 3,
+                  }}
+                />
+              )}
             </div>
           )
         })
