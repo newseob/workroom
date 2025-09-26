@@ -8,11 +8,13 @@ export default function App() {
     const handleUnload = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const payload = JSON.stringify({ userId: user.id })
-        navigator.sendBeacon("https://<project-ref>.functions.supabase.co/leave-room", payload)
+        await supabase
+          .from("users")
+          .update({ current_room: null })
+          .eq("id", user.id)
       }
     }
-  
+
     window.addEventListener("beforeunload", handleUnload)
     return () => window.removeEventListener("beforeunload", handleUnload)
   }, [])

@@ -21,7 +21,7 @@ export default function Room() {
       const currentUser = authData.user
       setUser(currentUser ?? null)
       setLoading(false)
-    
+
       // ✅ 자동 이동 없앰: 무조건 로그인 화면
       setStage("login")
     }
@@ -160,13 +160,13 @@ export default function Room() {
             style={{
               display: "flex",
               flexDirection: "column",
-              height: "100%",
+              height: "100vh",   // ✅ 100% 대신 vh 단위로 확실히 잡기
               width: "100%",
             }}
           >
             <div
               style={{
-                height: "calc(100vh)",
+                height: "calc(100vh - 200px)", 
                 overflowY: "auto",
               }}
             >
@@ -176,11 +176,7 @@ export default function Room() {
 
             <div
               style={{
-                position: "fixed",
-                bottom: 0,
-                left: 0,
-                width: "100%",
-                height: "110px",
+                height: "200px",
                 background: "#000",
                 display: "flex",
                 justifyContent: "center",

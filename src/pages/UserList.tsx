@@ -149,7 +149,6 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
         gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
         gap: "1rem",
         padding: "1rem",
-        paddingBottom: "200px",
         overflowY: "auto",
         alignContent: "stretch",
         gridAutoRows: "1fr",
@@ -188,7 +187,6 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
               key={p.id}
               className={isHighlighted ? "highlight" : ""}
               style={{
-                background: `url(/assets/background/${bgFile}.png) center/cover no-repeat`,
                 borderRadius: "8px",
                 position: "relative",
                 height: "100%",
@@ -197,20 +195,35 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
                 justifyContent: "center",
                 flexDirection: "column",
                 border: "3px solid transparent", // 기본은 투명
+                overflow: "hidden",              // ✅ 배경이 박스 밖으로 안 나가게
               }}
             >
-              {/* 캐릭터 이미지 */}
+              {/* 배경 이미지 */}
+              <img
+                src={`/assets/background/${bgFile}.png`}
+                alt="background"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover", // ✅ contain → cover (잘리게)
+                  zIndex: 0,
+                }}
+              />
+
+              {/* 캐릭터 이미지 / 닉네임 / 메모는 기존대로, zIndex 올리기 */}
               <img
                 src={characterImage}
                 alt={`${charName} - ${statusKey}`}
                 style={{
-                  maxWidth: "90%",
-                  maxHeight: "60%",
+                  maxWidth: "100%",
+                  maxHeight: "100%",
                   objectFit: "contain",
+                  zIndex: 1,
                 }}
               />
 
-              {/* 메모 표시 박스 */}
               {p.memo && (
                 <div
                   style={{
@@ -233,13 +246,13 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
+                    zIndex: 2,
                   }}
                 >
                   {p.memo}
                 </div>
               )}
 
-              {/* 닉네임 */}
               <div
                 style={{
                   position: "absolute",
