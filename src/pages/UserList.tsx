@@ -47,15 +47,16 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
   const [participants, setParticipants] = useState<User[]>([])
   const [highlightedIds, setHighlightedIds] = useState<string[]>([])
 
-  // ✅ away/복귀 상태 자동 처리
+  // ✅ last_seen 기반 상태 동기화
   useEffect(() => {
     const updateAwayStatuses = async () => {
       for (const p of participants) {
-        if (!p.last_seen) continue
+        if (!p.last_seen) continue;
 
-        const lastSeen = new Date(p.last_seen).getTime()
-        const diffMinutes = (Date.now() - lastSeen) / 1000 / 60
+        const lastSeen = new Date(p.last_seen).getTime();
+        const diffMinutes = (Date.now() - lastSeen) / 1000 / 60;
 
+        // 10분 넘음 → 자리비움 전환
         if (diffMinutes >= 10 && p.status !== "자리비움") {
           await supabase
             .from("users")
@@ -63,25 +64,26 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
               status_before_away: p.status,
               status: "자리비움",
             })
-            .eq("id", p.id)
+            .eq("id", p.id);
         }
 
-        if (diffMinutes < 10 && p.status === "자리비움" && p.status_before_away) {
+        // 10분 이내 + DB에는 자리비움 → 원래 상태 복구
+        if (diffMinutes < 10 && p.status === "자리비움" && (p as any).status_before_away) {
           await supabase
             .from("users")
             .update({
-              status: p.status_before_away,
+              status: (p as any).status_before_away,
               status_before_away: null,
             })
-            .eq("id", p.id)
+            .eq("id", p.id);
         }
       }
-    }
+    };
 
-    updateAwayStatuses()
-    const interval = setInterval(updateAwayStatuses, 60000) // 1분마다 체크
-    return () => clearInterval(interval)
-  }, [participants])
+    updateAwayStatuses();
+    const interval = setInterval(updateAwayStatuses, 60000); // 1분마다 검사
+    return () => clearInterval(interval);
+  }, [participants]);
 
   // ✅ heartbeat: 내 last_seen 주기적으로 갱신
   useEffect(() => {
