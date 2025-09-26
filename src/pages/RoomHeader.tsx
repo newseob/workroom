@@ -168,7 +168,7 @@ export default function RoomHeader({
             color: "#fff",
           }}
         >
-          다른방
+          ⇆
         </button>
 
         <button
@@ -183,7 +183,7 @@ export default function RoomHeader({
             color: "#fff",
           }}
         >
-          로그아웃
+          ✖
         </button>
       </div>
     </header>

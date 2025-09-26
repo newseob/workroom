@@ -15,6 +15,7 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
   const [recentRoom, setRecentRoom] = useState<Room | null>(null)
   const [favorites, setFavorites] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
+  const [joinCode, setJoinCode] = useState("") // ✅ 방 코드 입력 상태
 
   // ✅ 방 코드 생성
   const generateRoomCode = () => {
@@ -40,7 +41,6 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
       id: newRoomId,
       name: "새 방",
       owner: user.id,
-      // created_at: new Date().toISOString(), // rooms 테이블에 있으면 유지
     })
     if (roomError) {
       console.error("방 생성 오류:", roomError)
@@ -52,11 +52,31 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
       .from("users")
       .update({
         last_room: newRoomId,
-        // updated_at: new Date().toISOString(), // ❌ users 테이블에 없으면 제거
       })
       .eq("id", user.id)
 
     onRoomSelected(newRoomId)
+  }
+
+  // ✅ 방 입장 (입력한 코드로)
+  const handleJoinRoom = async () => {
+    if (!joinCode.trim()) {
+      alert("방 코드를 입력하세요.")
+      return
+    }
+
+    const { data: roomData } = await supabase
+      .from("rooms")
+      .select("id")
+      .eq("id", joinCode.trim().toUpperCase())
+      .maybeSingle()
+
+    if (!roomData) {
+      alert("존재하지 않는 방 코드입니다.")
+      return
+    }
+
+    onRoomSelected(roomData.id)
   }
 
   // ✅ 방 정보 + 인원수 조회
@@ -130,7 +150,6 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
         setFavorites(favRooms)
       }
 
-
       setLoading(false)
     }
 
@@ -139,16 +158,8 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
     // ✅ Realtime 구독: 방 이름/인원 갱신
     const channel = supabase
       .channel("room-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "rooms" },
-        () => fetchRooms()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "participants" },
-        () => fetchRooms()
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "rooms" }, () => fetchRooms())
+      .on("postgres_changes", { event: "*", schema: "public", table: "participants" }, () => fetchRooms())
       .subscribe()
 
     return () => {
@@ -177,7 +188,7 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
       {recentRoom && (
         <div
           style={{
-            background: "#1e3a8a", // tailwind 기준 bg-blue-900 느낌
+            background: "#1e3a8a",
             borderRadius: "8px",
             padding: "1.5rem",
             textAlign: "left",
@@ -225,6 +236,58 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
           </div>
         </div>
       ))}
+
+      {/* ✅ 방 입장 */}
+      <div
+        style={{
+          background: "#111",
+          borderRadius: "8px",
+          padding: "1.5rem",
+          textAlign: "center",
+          border: "2px dashed #666",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: "0.5rem",
+        }}
+      >
+        <h3 style={{ margin: 0, color: "#3b82f6" }}>방 입장</h3>
+
+        {/* 🔹 input + button 가로 배치 */}
+        <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
+          <input
+            type="text"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value)}
+            placeholder="방 코드 입력"
+            style={{
+              flex: 1,
+              padding: "6px",
+              borderRadius: "4px",
+              border: "1px solid #555",
+              background: "#222",
+              color: "#fff",
+              textAlign: "center",
+              fontSize: "14px",
+            }}
+          />
+          <button
+            onClick={handleJoinRoom}
+            style={{
+              padding: "6px 12px",
+              borderRadius: "4px",
+              border: "none",
+              background: "#3b82f6",
+              color: "#fff",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            입장
+          </button>
+        </div>
+      </div>
       {/* ✅ 방 생성 */}
       <div
         style={{
