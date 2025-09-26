@@ -14,7 +14,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     if (window.location.hash.includes("access_token")) {
       window.history.replaceState({}, document.title, window.location.pathname)
     }
-  }, [])  
+  }, [])
 
   // ✅ 로그인 상태 확인 & 닉네임 불러오기
   useEffect(() => {
@@ -162,13 +162,14 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           onChange={(e) => setNickname(e.target.value)}
           disabled={!sessionUser} // 로그인 전엔 막기
           style={{
-            width: "100%",
+            width: "100%",           // ✅ 살짝 줄여서 가운데 배치 효과
             padding: "10px",
             borderRadius: "6px",
             border: "1px solid #333",
             background: "#101010",
             color: "#fff",
             opacity: sessionUser ? 1 : 0.5,
+            textAlign: "center",    // ✅ 입력 텍스트도 가운데 정렬
           }}
         />
 

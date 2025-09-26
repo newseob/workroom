@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient"
 type Room = {
   id: string
   name: string
+  memberCount: number
 }
 
 type RoomSelectProps = {
@@ -15,19 +16,82 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
   const [favorites, setFavorites] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
 
-  // ✅ 최근 접속 방 + 즐겨찾기 불러오기
+  // ✅ 방 코드 생성
+  const generateRoomCode = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    let code = ""
+    for (let i = 0; i < 5; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return code
+  }
+
+  // ✅ 새 방 생성
+  const handleCreateRoom = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      alert("로그인이 필요합니다.")
+      return
+    }
+
+    const newRoomId = generateRoomCode()
+
+    const { error: roomError } = await supabase.from("rooms").insert({
+      id: newRoomId,
+      name: "새 방",
+      owner: user.id,
+      // created_at: new Date().toISOString(), // rooms 테이블에 있으면 유지
+    })
+    if (roomError) {
+      console.error("방 생성 오류:", roomError)
+      alert("방 생성 실패")
+      return
+    }
+
+    await supabase
+      .from("users")
+      .update({
+        last_room: newRoomId,
+        // updated_at: new Date().toISOString(), // ❌ users 테이블에 없으면 제거
+      })
+      .eq("id", user.id)
+
+    onRoomSelected(newRoomId)
+  }
+
+  // ✅ 방 정보 + 인원수 조회
+  const getRoomWithCount = async (roomId: string) => {
+    const { data: roomData } = await supabase
+      .from("rooms")
+      .select("id,name")
+      .eq("id", roomId)
+      .single()
+
+    if (!roomData) return null
+
+    const { count } = await supabase
+      .from("participants")
+      .select("*", { count: "exact", head: true })
+      .eq("room_id", roomId)
+
+    return {
+      ...roomData,
+      memberCount: count ?? 0,
+    }
+  }
+
+  // ✅ 최근방 + 즐겨찾기 불러오기
   useEffect(() => {
     const fetchRooms = async () => {
       setLoading(true)
 
-      // 1. 현재 로그인된 유저 확인
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         setLoading(false)
         return
       }
 
-      // 2. users 테이블에서 last_room 가져오기
+      // 최근 접속 방
       const { data: userRow } = await supabase
         .from("users")
         .select("last_room")
@@ -35,28 +99,61 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
         .single()
 
       if (userRow?.last_room) {
-        const { data: roomData } = await supabase
-          .from("rooms")
-          .select("id,name")
-          .eq("id", userRow.last_room)
-          .single()
-        setRecentRoom(roomData ?? null)
+        const roomInfo = await getRoomWithCount(userRow.last_room)
+        setRecentRoom(roomInfo)
       }
 
-      // 3. favorites 테이블에서 즐겨찾기 목록 가져오기
+      // 즐겨찾기 방
       const { data: favRows } = await supabase
         .from("favorites")
-        .select("room_id, rooms(id,name)")
+        .select("room_id")
         .eq("user_id", user.id)
 
       if (favRows) {
-        setFavorites(favRows.map((f: any) => f.rooms))
+        const favRooms: Room[] = []
+        for (const f of favRows) {
+          const { data: roomData } = await supabase
+            .from("rooms")
+            .select("id,name")
+            .eq("id", f.room_id)
+            .single()
+
+          if (roomData) {
+            const { count } = await supabase
+              .from("participants")
+              .select("*", { count: "exact", head: true })
+              .eq("room_id", f.room_id)
+
+            favRooms.push({ ...roomData, memberCount: count ?? 0 })
+          }
+        }
+        setFavorites(favRooms)
       }
+
 
       setLoading(false)
     }
 
     fetchRooms()
+
+    // ✅ Realtime 구독: 방 이름/인원 갱신
+    const channel = supabase
+      .channel("room-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "rooms" },
+        () => fetchRooms()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "participants" },
+        () => fetchRooms()
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   if (loading) {
@@ -80,51 +177,70 @@ export default function RoomSelect({ onRoomSelected }: RoomSelectProps) {
       {recentRoom && (
         <div
           style={{
-            background: "#1a1a1a",
+            background: "#1e3a8a", // tailwind 기준 bg-blue-900 느낌
             borderRadius: "8px",
             padding: "1.5rem",
-            textAlign: "center",
+            textAlign: "left",
             cursor: "pointer",
           }}
           onClick={() => onRoomSelected(recentRoom.id)}
         >
-          <h3 style={{ margin: "0 0 0.5rem 0" }}>최근 접속한 방</h3>
-          <p style={{ fontSize: "14px", color: "#aaa" }}>{recentRoom.name}</p>
+          <div style={{ fontSize: "12px", color: "#888", marginBottom: "4px" }}>
+            최근 접속한 방
+          </div>
+          <div style={{ fontSize: "16px", fontWeight: "bold" }}>
+            {recentRoom.name}
+          </div>
+          <div style={{ fontSize: "13px", color: "#aaa" }}>
+            코드: {recentRoom.id}
+          </div>
+          <div style={{ fontSize: "13px", color: "#aaa" }}>
+            인원: {recentRoom.memberCount}/12
+          </div>
         </div>
       )}
 
       {/* ✅ 즐겨찾기한 방들 */}
-      {favorites.map((room) => (
+      {favorites.map((room, idx) => (
         <div
           key={room.id}
           style={{
-            background: "#262626",
+            background: "#333",
             borderRadius: "8px",
             padding: "1.5rem",
-            textAlign: "center",
+            textAlign: "left",
             cursor: "pointer",
           }}
           onClick={() => onRoomSelected(room.id)}
         >
-          <h3 style={{ margin: "0 0 0.5rem 0" }}>{room.name}</h3>
-          <p style={{ fontSize: "14px", color: "#aaa" }}>즐겨찾은 방</p>
+          <div style={{ fontSize: "12px", color: "#888", marginBottom: "4px" }}>
+            즐겨찾기 #{idx + 1}
+          </div>
+          <div style={{ fontSize: "16px", fontWeight: "bold" }}>
+            {room.name}
+          </div>
+          <div style={{ fontSize: "13px", color: "#aaa" }}>코드: {room.id}</div>
+          <div style={{ fontSize: "13px", color: "#aaa" }}>
+            인원: {room.memberCount}/12
+          </div>
         </div>
       ))}
-
       {/* ✅ 방 생성 */}
       <div
         style={{
-          background: "#333",
+          background: "#111",
           borderRadius: "8px",
           padding: "1.5rem",
           textAlign: "center",
           cursor: "pointer",
           border: "2px dashed #666",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
         }}
-        onClick={() => alert("방 생성 로직 연결 예정")}
+        onClick={handleCreateRoom}
       >
-        <h3 style={{ margin: "0 0 0.5rem 0", color: "#6d28d9" }}>＋ 방 생성</h3>
-        <p style={{ fontSize: "14px", color: "#aaa" }}>새로운 작업방 만들기</p>
+        <h3 style={{ margin: 0, color: "#3b82f6" }}>방 생성</h3>
       </div>
     </div>
   )
