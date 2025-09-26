@@ -157,7 +157,7 @@ export default function UserInputPanel({ userId, roomId }: Props) {
 
                         // ✅ 1. users 테이블 업데이트
                         await updateUser("memo", newMemo)
-                        setMemo(newMemo)
+                        setMemo("")   // 🔹 입력칸 비우기
 
                         // ✅ 2. sound_events 테이블에 이벤트 기록
                         await supabase.from("sound_events").insert({
