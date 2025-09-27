@@ -202,12 +202,11 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
       style={{
         flex: 1,
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", // ✅ 최소 가로 폭 늘림
         gap: "1rem",
         padding: "1rem",
         overflowY: "auto",
-        alignContent: "stretch",
-        gridAutoRows: "1fr",
+        alignContent: "start",
         background: "#101010",
         color: "#fff",
         boxSizing: "border-box",
@@ -250,6 +249,7 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
               style={{
                 borderRadius: "8px",
                 position: "relative",
+                aspectRatio: "4 / 3",    // ✅ 가로로 길게
                 height: "100%",
                 display: "flex",
                 alignItems: "center",
@@ -290,7 +290,7 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
                 <div
                   style={{
                     position: "absolute",
-                    top: "15%",
+                    top: "5%",
                     left: "50%",
                     transform: "translate(-50%)",
                     background: "rgba(255,255,255,0.7)",

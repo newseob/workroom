@@ -29,6 +29,25 @@ export default function Room() {
     checkUser()
   }, [])
 
+  // ===== 5. 복귀 이벤트 감지 (마우스/키보드 움직임) =====
+  useEffect(() => {
+    if (!(stage === "room" && user)) return
+
+    const handleActivity = async () => {
+      await supabase
+        .from("users")
+        .update({ last_seen: new Date().toISOString() })
+        .eq("id", user.id)
+    }
+
+    window.addEventListener("mousemove", handleActivity)
+    window.addEventListener("keydown", handleActivity)
+
+    return () => {
+      window.removeEventListener("mousemove", handleActivity)
+      window.removeEventListener("keydown", handleActivity)
+    }
+  }, [stage, user])
 
   // ===== 2. roomId 바뀔 때 방 이름 가져오기 =====
   useEffect(() => {
@@ -166,7 +185,7 @@ export default function Room() {
           >
             <div
               style={{
-                height: "calc(100vh - 200px)", 
+                height: "calc(100vh - 200px)",
                 overflowY: "auto",
               }}
             >
