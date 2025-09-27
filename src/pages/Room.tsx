@@ -5,6 +5,7 @@ import RoomSelect from "./RoomSelect"
 import UserList from "./UserList"
 import RoomHeader from "./RoomHeader"
 import UserInputPanel from "./UserInputPanel"
+import SpecialUserList from "./SpecialUserList"
 
 export default function Room() {
   const [user, setUser] = useState<any>(null)                     // 로그인 유저 정보
@@ -190,7 +191,14 @@ export default function Room() {
               }}
             >
               {/* ✅ 현재 방 ID 넘겨줌 */}
-              <UserList roomId={roomId} currentUserId={user.id} />
+              <div style={{ height: "calc(100vh - 200px)", overflowY: "auto" }}>
+                {roomId === "U6R8H" ? (
+                  <SpecialUserList roomId={roomId} currentUserId={user.id} />
+                ) : (
+                  <UserList roomId={roomId} currentUserId={user.id} />
+                )}
+              </div>
+              
             </div>
 
             <div

@@ -7,6 +7,7 @@ type RoomHeaderProps = {
   roomId: string | null
   isFavorite: boolean
   setIsFavorite: (value: boolean) => void
+  
   onSelectRoom: () => void
   onLogout: () => void
 }
