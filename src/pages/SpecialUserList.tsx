@@ -1,3 +1,4 @@
+// src/components/SpecialUserList.tsx
 import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabaseClient"
 
@@ -33,7 +34,7 @@ const orderMap: Record<string, number> = {
   "뚜노": 6,
 }
 
-// ✅ 닉네임별 메모 위치 (퍼센트 좌표)
+// ✅ 닉네임별 메모 위치
 const memoPositionMap: Record<string, { top: string; left: string }> = {
   "호떡": { top: "17%", left: "28%" },
   "망고멍": { top: "30%", left: "80%" },
@@ -45,7 +46,17 @@ const memoPositionMap: Record<string, { top: string; left: string }> = {
 
 export default function SpecialUserList({ roomId }: SpecialUserListProps) {
   const [participants, setParticipants] = useState<User[]>([])
+  const [highlightedIds, setHighlightedIds] = useState<string[]>([])
 
+  // ✅ 하이라이트 트리거 (메모 전용)
+  const triggerHighlight = (id: string) => {
+    setHighlightedIds((prev) => [...prev, id])
+    setTimeout(() => {
+      setHighlightedIds((prev) => prev.filter((x) => x !== id))
+    }, 3000) // 3초 후 제거
+  }
+
+  // ✅ 참가자 로드 + 구독
   useEffect(() => {
     if (!roomId) return
 
@@ -65,8 +76,42 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "users" },
-        () => {
-          fetchParticipants()
+        (payload) => {
+          const newRow = payload.new as User
+          const oldRow = payload.old as User
+
+          setParticipants((prev) => {
+            // ✅ 퇴장
+            if (payload.eventType === "DELETE" && oldRow) {
+              const leaveAudio = new Audio("/assets/sound/Metal Dropped Rolling.mp3")
+              leaveAudio.play().catch(console.error)
+              return prev.filter((u) => u.id !== oldRow.id)
+            }
+
+            // ✅ 입장 + 업데이트
+            if (
+              (payload.eventType === "INSERT" || payload.eventType === "UPDATE") &&
+              newRow.current_room === roomId
+            ) {
+              const exists = prev.find((u) => u.id === newRow.id)
+              if (exists) {
+                // ✅ 메모 변경 → 사운드 + 하이라이트
+                if (newRow.memo !== exists.memo) {
+                  triggerHighlight(newRow.id)
+                  const memoAudio = new Audio("/assets/sound/Metallic Clank.mp3")
+                  memoAudio.play().catch(console.error)
+                }
+                return prev.map((u) => (u.id === newRow.id ? newRow : u))
+              } else {
+                // ✅ 새로 입장
+                const joinAudio = new Audio("/assets/sound/Pop.mp3")
+                joinAudio.play().catch(console.error)
+                return [...prev, newRow]
+              }
+            }
+
+            return prev
+          })
         }
       )
       .subscribe()
@@ -84,9 +129,21 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <style>{`
+        @keyframes memoGlow {
+          0%   { box-shadow: 0 0 0px yellow; }
+          50%  { box-shadow: 0 0 12px yellow; }
+          100% { box-shadow: 0 0 0px yellow; }
+        }
+        .memo-highlight {
+          animation: memoGlow 3s ease-in-out;
+        }
+      `}</style>
+
       {sorted.map((p) => {
         const imgNum = imageMap[p.nickname ?? ""]
         if (!imgNum) return null
+        const isHighlighted = highlightedIds.includes(p.id)
 
         return (
           <div key={p.id}>
@@ -106,15 +163,16 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
               }}
             />
 
-            {/* 실제 메모 */}
+            {/* 메모 박스 */}
             {p.memo && (
               <div
+                className={isHighlighted ? "memo-highlight" : ""}
                 style={{
                   position: "absolute",
                   top: memoPositionMap[p.nickname ?? ""]?.top || "20%",
                   left: memoPositionMap[p.nickname ?? ""]?.left || "50%",
                   transform: "translate(-50%, -50%)",
-                  background: "rgba(255, 255, 255, 0.7)", // ✅ 흰색 + 투명
+                  background: "rgba(255, 255, 255, 0.7)",
                   color: "#000",
                   padding: "4px 8px",
                   borderRadius: "6px",
