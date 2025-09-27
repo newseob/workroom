@@ -244,7 +244,7 @@ export default function SpecialUserList({ roomId, currentUserId }: SpecialUserLi
                                 position: "relative",
                                 maxWidth: "100%",
                                 maxHeight: "100%",
-                                opacity: inactive ? 0.4 : 1, // ✅ 비활성화 시 반투명 처리
+                                opacity: inactive ? 0.2 : 1, // ✅ 비활성화 시 반투명 처리
                             }}
                         >
                             <img
