@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { supabase } from "./lib/supabaseClient"
 import Room from "./pages/Room"
+import VideoOverlay from "./pages/VideoOverlay"
 
 export default function App() {
   useEffect(() => {
@@ -23,6 +24,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Room />} />
+        <Route path="/video" element={<VideoOverlay />} />
       </Routes>
     </BrowserRouter>
   )
