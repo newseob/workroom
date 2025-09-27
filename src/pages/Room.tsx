@@ -187,7 +187,7 @@ export default function Room() {
             <div
               style={{
                 height: "calc(100vh - 200px)",
-                overflowY: "auto",
+                overflow: "hidden",   // ✅ 스크롤 차단
               }}
             >
               {/* ✅ 현재 방 ID 넘겨줌 */}
