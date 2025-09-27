@@ -84,6 +84,7 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
             // ✅ 퇴장
             if (payload.eventType === "DELETE" && oldRow) {
               const leaveAudio = new Audio("/assets/sound/Metal Dropped Rolling.mp3")
+              leaveAudio.volume = 0.6          // 🔉 볼륨 60%
               leaveAudio.play().catch(console.error)
               return prev.filter((u) => u.id !== oldRow.id)
             }
@@ -99,12 +100,14 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
                 if (newRow.memo !== exists.memo) {
                   triggerHighlight(newRow.id)
                   const memoAudio = new Audio("/assets/sound/Metallic Clank.mp3")
+                  memoAudio.volume = 0.6           // 🔉 볼륨 60%
                   memoAudio.play().catch(console.error)
                 }
                 return prev.map((u) => (u.id === newRow.id ? newRow : u))
               } else {
                 // ✅ 새로 입장
                 const joinAudio = new Audio("/assets/sound/Pop.mp3")
+                joinAudio.volume = 0.6             // 🔉 볼륨 60%
                 joinAudio.play().catch(console.error)
                 return [...prev, newRow]
               }
