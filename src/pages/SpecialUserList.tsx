@@ -171,8 +171,8 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
               src={`/assets/summerspring/${imgNum}.png`}
               alt={p.nickname || "캐릭터"}
               style={{
-                width: "96%",
-                height: "96%",
+                width: "99%",
+                height: "99%",
                 objectFit: "contain",
                 pointerEvents: "none",
               }}
