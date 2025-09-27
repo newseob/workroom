@@ -33,6 +33,7 @@ const orderMap: Record<string, number> = {
   "뚜노": 6,
 }
 
+// 퍼센트 좌표 (이미지 박스 기준)
 const memoPositionMap: Record<string, { top: string; left: string }> = {
   "호떡": { top: "17%", left: "30%" },
   "망고멍": { top: "30%", left: "80%" },
@@ -156,7 +157,7 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
 
         const lastSeen = p.last_seen ? new Date(p.last_seen).getTime() : 0
         const diffMinutes = lastSeen ? (Date.now() - lastSeen) / 1000 / 60 : 0
-        const showOverlay = diffMinutes >= 10
+        const inactive = diffMinutes >= 10
 
         return (
           <div
@@ -164,51 +165,55 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
             style={{
               position: "absolute",
               inset: 0,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
               zIndex: 999 - (orderMap[p.nickname ?? ""] ?? 999),
             }}
           >
-            <img
-              src={`/assets/summerspring/${imgNum}.png`}
-              alt={p.nickname || "캐릭터"}
+            {/* 이미지 박스 */}
+            <div
               style={{
-                width: "99%",
-                height: "99%",
-                objectFit: "contain",
-                pointerEvents: "none",
+                position: "relative",
+                maxWidth: "100%",
+                maxHeight: "100%",
+                opacity: inactive ? 0.4 : 1, // ✅ 비활성화 시 반투명 처리
               }}
-            />
-
-            {p.memo && (
-              <div
-                className={isHighlighted ? "memo-highlight" : ""}
+            >
+              <img
+                src={`/assets/summerspring/${imgNum}.png`}
+                alt={p.nickname || "캐릭터"}
                 style={{
-                  position: "absolute",
-                  top: memoPositionMap[p.nickname ?? ""]?.top || "20%",
-                  left: memoPositionMap[p.nickname ?? ""]?.left || "50%",
-                  transform: "translate(-50%, -50%)",
-                  background: "rgba(255, 255, 255, 0.7)",
-                  color: "#000",
-                  padding: "4px 8px",
-                  borderRadius: "6px",
-                  fontSize: "14px",
-                  whiteSpace: "nowrap",
-                  zIndex: 2,
-                }}
-              >
-                {p.memo}
-              </div>
-            )}
-
-            {showOverlay && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "rgba(0,0,0,0.6)",
-                  zIndex: 3,
+                  width: "auto",
+                  height: "auto",
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  display: "block",
                 }}
               />
-            )}
+
+              {/* 메모 박스 */}
+              {p.memo && (
+                <div
+                  className={isHighlighted ? "memo-highlight" : ""}
+                  style={{
+                    position: "absolute",
+                    top: memoPositionMap[p.nickname ?? ""]?.top || "20%",
+                    left: memoPositionMap[p.nickname ?? ""]?.left || "50%",
+                    transform: "translate(-50%, -50%)",
+                    background: "rgba(255,255,255,0.9)", // ✅ 거의 흰색
+                    color: "#000",                        // ✅ 글씨는 검정
+                    padding: "4px 8px",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    fontWeight: "bold",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {p.memo}
+                </div>
+              )}
+            </div>
           </div>
         )
       })}
