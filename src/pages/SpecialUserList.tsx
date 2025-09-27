@@ -34,7 +34,7 @@ const orderMap: Record<string, number> = {
 }
 
 const memoPositionMap: Record<string, { top: string; left: string }> = {
-  "호떡": { top: "17%", left: "28%" },
+  "호떡": { top: "17%", left: "30%" },
   "망고멍": { top: "30%", left: "80%" },
   "우유": { top: "26%", left: "71%" },
   "켠피": { top: "30%", left: "63%" },
@@ -171,8 +171,8 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
               src={`/assets/summerspring/${imgNum}.png`}
               alt={p.nickname || "캐릭터"}
               style={{
-                width: "100%",
-                height: "100%",
+                width: "96%",
+                height: "96%",
                 objectFit: "contain",
                 pointerEvents: "none",
               }}
