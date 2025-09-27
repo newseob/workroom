@@ -201,12 +201,13 @@ export default function UserList({ roomId, currentUserId }: UserListProps) {
     <div
       style={{
         flex: 1,
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", // ✅ 최소 가로 폭 늘림
+        display: sortedParticipants.length === 1 ? "flex" : "grid",
+        gridTemplateColumns: sortedParticipants.length === 1 ? undefined : "repeat(auto-fit, minmax(200px, 1fr))",
+        justifyContent: sortedParticipants.length === 1 ? "center" : undefined,
+        alignItems: sortedParticipants.length === 1 ? "center" : undefined,
         gap: "1rem",
         padding: "1rem",
         overflowY: "auto",
-        alignContent: "start",
         background: "#101010",
         color: "#fff",
         boxSizing: "border-box",

@@ -8,6 +8,8 @@ type User = {
     current_room?: string | null
     memo?: string | null
     last_seen?: string | null
+    status?: string | null             // ✅ 추가
+    status_before_away?: string | null // ✅ 추가
 }
 
 type SpecialUserListProps = {
@@ -43,7 +45,7 @@ const memoPositionMap: Record<string, { top: string; left: string }> = {
     "뚜노": { top: "33%", left: "40%" },
 }
 
-export default function SpecialUserList({ roomId }: SpecialUserListProps) {
+export default function SpecialUserList({ roomId, currentUserId }: SpecialUserListProps) {
     const [participants, setParticipants] = useState<User[]>([])
     const [highlightedIds, setHighlightedIds] = useState<string[]>([])
 
@@ -53,6 +55,43 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
             setHighlightedIds((prev) => prev.filter((x) => x !== id))
         }, 3000)
     }
+
+    // ✅ 내 last_seen 갱신 (30초마다 실행)
+    useEffect(() => {
+        if (!currentUserId) return
+        const interval = setInterval(async () => {
+            await supabase
+                .from("users")
+                .update({ last_seen: new Date().toISOString() })
+                .eq("id", currentUserId)
+        }, 30000) // 30초마다
+        return () => clearInterval(interval)
+    }, [currentUserId])
+
+    // ✅ 10분 이상 미활동 → 자리비움으로 전환
+    useEffect(() => {
+        const updateAwayStatuses = async () => {
+            for (const p of participants) {
+                if (!p.last_seen) continue
+                const lastSeen = new Date(p.last_seen).getTime()
+                const diffMinutes = Math.floor((Date.now() - lastSeen) / 1000 / 60)
+
+                if (diffMinutes >= 10 && p.status !== "자리비움") {
+                    await supabase
+                        .from("users")
+                        .update({
+                            status_before_away: p.status,
+                            status: "자리비움",
+                        })
+                        .eq("id", p.id)
+                }
+            }
+        }
+
+        updateAwayStatuses()
+        const interval = setInterval(updateAwayStatuses, 60000) // 1분마다
+        return () => clearInterval(interval)
+    }, [participants])
 
     useEffect(() => {
         if (!roomId) return
@@ -73,12 +112,29 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
             .on(
                 "postgres_changes",
                 { event: "*", schema: "public", table: "users" },
-                (payload) => {
+                async (payload) => {
                     const newRow = payload.new as User
                     const oldRow = payload.old as User
 
+                    // ✅ 자리비움 → 복귀 처리
+                    if (
+                        payload.eventType === "UPDATE" &&
+                        newRow.last_seen !== oldRow?.last_seen &&
+                        newRow.status === "자리비움" &&
+                        newRow.status_before_away
+                    ) {
+                        await supabase
+                            .from("users")
+                            .update({
+                                status: newRow.status_before_away,
+                                status_before_away: null,
+                            })
+                            .eq("id", newRow.id)
+                    }
+
+                    // ✅ 기존 participants 갱신 로직
                     setParticipants((prev) => {
-                        // ✅ 완전 삭제
+                        // 완전 삭제
                         if (payload.eventType === "DELETE" && oldRow) {
                             const leaveAudio = new Audio("/assets/sound/Metal Dropped Rolling.mp3")
                             leaveAudio.volume = 0.6
@@ -86,7 +142,7 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
                             return prev.filter((u) => u.id !== oldRow.id)
                         }
 
-                        // ✅ 나간 경우 (UPDATE → current_room 변경)
+                        // 나간 경우
                         if (
                             payload.eventType === "UPDATE" &&
                             oldRow?.current_room === roomId &&
@@ -98,7 +154,7 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
                             return prev.filter((u) => u.id !== newRow.id)
                         }
 
-                        // ✅ 입장 or 업데이트
+                        // 입장 or 업데이트
                         if (
                             (payload.eventType === "INSERT" || payload.eventType === "UPDATE") &&
                             newRow.current_room === roomId
@@ -129,6 +185,7 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
         return () => {
             supabase.removeChannel(channel)
         }
+
     }, [roomId])
 
     const sorted = [...participants].sort((a, b) => {
