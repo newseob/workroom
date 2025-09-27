@@ -21,9 +21,19 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Room />} />
-      </Routes>
+      {/* ✅ 전역 레이아웃 컨테이너 */}
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "1500px",  // 좌우 폭 제한
+          margin: "0 auto",   // 가운데 정렬
+          minHeight: "100vh", // 세로 화면 채움
+        }}
+      >
+        <Routes>
+          <Route path="/" element={<Room />} />
+        </Routes>
+      </div>
     </BrowserRouter>
   )
 }
