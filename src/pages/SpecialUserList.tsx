@@ -176,7 +176,7 @@ export default function SpecialUserList({ roomId }: SpecialUserListProps) {
               style={{
                 position: "relative",
                 maxWidth: "100%",
-                maxHeight: "100%",
+                maxHeight: "99%",
                 opacity: inactive ? 0.4 : 1, // ✅ 비활성화 시 반투명 처리
               }}
             >
