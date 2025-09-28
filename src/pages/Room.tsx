@@ -186,7 +186,7 @@ export default function Room() {
           >
             <div
               style={{
-                height: "calc(100vh - 200px)",
+                height: "calc(100vh - 100px)",
                 overflow: "hidden",   // ✅ 스크롤 차단
               }}
             >
