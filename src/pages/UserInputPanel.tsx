@@ -13,6 +13,9 @@ export default function UserInputPanel({ userId, roomId }: Props) {
     const [status, setStatus] = useState("")
     const [memo, setMemo] = useState("")
 
+    {/* 특정 방 잠금 조건 */ }
+    const isLockedRoom = roomId === "U6R8H"
+
     const selectStyle: React.CSSProperties = {
         padding: "6px",
         borderRadius: "4px",
@@ -60,7 +63,7 @@ export default function UserInputPanel({ userId, roomId }: Props) {
     return (
         <div
             style={{
-                background: "#000",
+                background: "transparent",   // 🔹 완전 투명
                 padding: "1rem",
                 height: "180px",
                 width: "100%",
@@ -99,11 +102,14 @@ export default function UserInputPanel({ userId, roomId }: Props) {
                 <select
                     value={character}
                     onChange={(e) => {
+                        if (isLockedRoom) return   // 🔒 잠금
                         const v = e.target.value
                         setCharacter(v)
                         updateUser("character", v)   // ✅ 바로 DB 반영
                     }}
                     style={selectStyle}
+                    disabled={isLockedRoom}  // 🔒 UI 비활성화
+
                 >
                     <option value="">캐릭터 선택</option>
                     <option value="A">🐱 호두</option>
@@ -114,11 +120,14 @@ export default function UserInputPanel({ userId, roomId }: Props) {
                 <select
                     value={background}
                     onChange={(e) => {
+                        if (isLockedRoom) return   // 🔒 잠금
                         const v = e.target.value
                         setBackground(v)
                         updateUser("background", v)
                     }}
                     style={selectStyle}
+                    disabled={isLockedRoom}  // 🔒 UI 비활성화
+
                 >
                     <option value="">배경 선택</option>
                     <option value="집">🏠 집</option>
@@ -130,11 +139,13 @@ export default function UserInputPanel({ userId, roomId }: Props) {
                 <select
                     value={status}
                     onChange={(e) => {
+                        if (isLockedRoom) return   // 🔒 잠금
                         const v = e.target.value
                         setStatus(v)
                         updateUser("status", v)
                     }}
                     style={selectStyle}
+                    disabled={isLockedRoom}  // 🔒 UI 비활성화
                 >
                     <option value="">상태 선택</option>
                     <option value="작업중">🖥️ 작업중</option>
@@ -170,7 +181,7 @@ export default function UserInputPanel({ userId, roomId }: Props) {
                 }}
                 style={{
                     width: "100%",
-                    minHeight: "30px",
+                    height: "32px",
                     padding: "6px",
                     borderRadius: "4px",
                     border: "1px solid #555",

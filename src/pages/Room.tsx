@@ -204,7 +204,7 @@ export default function Room() {
             <div
               style={{
                 height: "200px",
-                background: "#000",
+                background: "transparent",   // 🔹 완전 투명
                 display: "flex",
                 justifyContent: "center",
               }}
