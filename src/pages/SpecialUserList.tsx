@@ -39,9 +39,9 @@ const orderMap: Record<string, number> = {
 const memoPositionMap: Record<string, { top: string; left: string }> = {
     "호떡": { top: "17%", left: "30%" },
     "망고멍": { top: "30%", left: "80%" },
-    "우유": { top: "26%", left: "71%" },
+    "우유": { top: "23%", left: "71%" },
     "켠피": { top: "30%", left: "63%" },
-    "모니": { top: "24%", left: "53%" },
+    "모니": { top: "23%", left: "53%" },
     "뚜노": { top: "33%", left: "40%" },
 }
 
