@@ -37,12 +37,12 @@ const orderMap: Record<string, number> = {
 
 // 퍼센트 좌표 (이미지 박스 기준)
 const memoPositionMap: Record<string, { top: string; left: string }> = {
-    "호떡": { top: "17%", left: "30%" },
+    "호떡": { top: "15%", left: "30%" },
     "망고멍": { top: "30%", left: "80%" },
-    "우유": { top: "23%", left: "71%" },
-    "켠피": { top: "30%", left: "63%" },
-    "모니": { top: "23%", left: "53%" },
-    "뚜노": { top: "33%", left: "40%" },
+    "우유": { top: "10%", left: "71%" },
+    "켠피": { top: "20%", left: "63%" },
+    "모니": { top: "10%", left: "53%" },
+    "뚜노": { top: "30%", left: "40%" },
 }
 
 export default function SpecialUserList({ roomId, currentUserId }: SpecialUserListProps) {
